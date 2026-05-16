@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       {
-        error: `${message} Confirm that Ollama is running locally and that the model is available: ollama pull gemma4:e4b`,
+        error: `${message} Confirm that the Ollama backend is reachable and that the configured model is available.`,
       },
       { status: 500 },
     );

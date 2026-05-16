@@ -112,14 +112,20 @@ ${trimmedDocument}
 
 
 async function getOllamaAuthHeaders(baseUrl: string): Promise<Record<string, string>> {
-  const serviceAccountJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  const serviceAccountJson =
+    process.env.GOOGLE_SERVICE_ACCOUNT_JSON ||
+    (process.env.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64
+      ? Buffer.from(process.env.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64, "base64").toString("utf8")
+      : "");
 
   if (!serviceAccountJson) {
     return {};
   }
 
   const audience = process.env.CLOUD_RUN_AUDIENCE || baseUrl;
-  const credentials = JSON.parse(serviceAccountJson);
+  const parsedCredentials = JSON.parse(serviceAccountJson);
+  const credentials =
+    typeof parsedCredentials === "string" ? JSON.parse(parsedCredentials) : parsedCredentials;
   const auth = new GoogleAuth({ credentials });
   const client = await auth.getIdTokenClient(audience);
   const requestHeaders = await client.getRequestHeaders();

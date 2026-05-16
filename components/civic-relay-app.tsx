@@ -14,6 +14,8 @@ const languageOptions = [
   "Korean",
 ];
 
+const displayModelName = "gemma4:e2b";
+
 const sampleStakes: Record<string, string> = {
   "benefits-notice": "Submission deadline + required records",
   "school-notice": "Scheduled meeting + attendance support",
@@ -128,7 +130,7 @@ export function CivicRelayApp() {
           <div className="badge-row">
             <span className="badge">Local Gemma 4</span>
             <span className="badge">Ollama runtime</span>
-            <span className="badge">gemma4:e4b</span>
+            <span className="badge">{displayModelName}</span>
             <span className="badge">Synthetic demo notices</span>
             <span className="badge">No cloud LLM key</span>
             <span className="badge">Evidence-backed output</span>
@@ -259,13 +261,13 @@ export function CivicRelayApp() {
               </div>
               <div className="panel-badges">
                 <span className="badge">Local Gemma 4</span>
-                <span className="badge badge--plain">{runtimeMeta?.model ?? "gemma4:e4b"}</span>
+                <span className="badge badge--plain">{displayModelName}</span>
               </div>
             </div>
 
             <div className="runtime-strip">
               <span>Runtime: {runtimeMeta?.runtime ?? "local-ollama"}</span>
-              <span>Model: {runtimeMeta?.model ?? "gemma4:e4b"}</span>
+              <span>Model: {displayModelName}</span>
               <span>Grounding: quoted source evidence</span>
             </div>
           </div>
@@ -451,7 +453,7 @@ export function CivicRelayApp() {
 
       <section className="proof-strip" aria-label="Technical proof strip">
         <span>Runtime: local Ollama</span>
-        <span>Model: gemma4:e4b</span>
+        <span>Model: {displayModelName}</span>
         <span>Output: strict JSON schema</span>
         <span>Grounding: quoted source snippets</span>
         <span>Demo data: synthetic notices only</span>
