@@ -1,3 +1,4 @@
+import { GoogleAuth } from "google-auth-library";
 import type { CivicRelayResult, Priority } from "@/lib/types";
 
 const DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434";
@@ -109,6 +110,40 @@ ${trimmedDocument}
 """`;
 }
 
+
+async function getOllamaAuthHeaders(baseUrl: string): Promise<Record<string, string>> {
+  const serviceAccountJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+
+  if (!serviceAccountJson) {
+    return {};
+  }
+
+  const audience = process.env.CLOUD_RUN_AUDIENCE || baseUrl;
+  const credentials = JSON.parse(serviceAccountJson);
+  const auth = new GoogleAuth({ credentials });
+  const client = await auth.getIdTokenClient(audience);
+  const requestHeaders = await client.getRequestHeaders();
+
+  let authorization: string | null | undefined;
+
+  if (typeof (requestHeaders as Headers).get === "function") {
+    authorization =
+      (requestHeaders as Headers).get("authorization") ||
+      (requestHeaders as Headers).get("Authorization");
+  } else {
+    const headerRecord = requestHeaders as unknown as Record<string, string>;
+    authorization = headerRecord.Authorization || headerRecord.authorization;
+  }
+
+  if (!authorization) {
+    throw new Error("Could not generate Cloud Run identity token.");
+  }
+
+  return {
+    Authorization: authorization,
+  };
+}
+
 export async function analyzeWithOllama({
   documentText,
   outputLanguage,
@@ -121,6 +156,7 @@ export async function analyzeWithOllama({
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...(await getOllamaAuthHeaders(baseUrl)),
     },
     body: JSON.stringify({
       model,
