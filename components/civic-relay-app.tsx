@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { sampleDocuments } from "@/lib/sample-documents";
 import type { CivicRelayResult } from "@/lib/types";
 
@@ -22,6 +22,21 @@ const sampleStakes: Record<string, string> = {
   "clinic-follow-up": "Follow-up deadline + language support",
 };
 
+const stagedLoadingSteps = [
+  { target: 10, label: "Reading notice...", durationMs: 800 },
+  { target: 30, label: "Finding deadlines and documents...", durationMs: 1200 },
+  { target: 55, label: "Building action plan...", durationMs: 1600 },
+  { target: 75, label: "Checking evidence and uncertainty...", durationMs: 1600 },
+  { target: 90, label: "Preparing final result...", durationMs: 1400 },
+] as const;
+
+const finishedLoadingStep = { target: 100, label: "Done" };
+
+const totalStagedLoadingDuration = stagedLoadingSteps.reduce(
+  (total, stage) => total + stage.durationMs,
+  0,
+);
+
 type AnalyzeResponse = {
   result?: CivicRelayResult;
   error?: string;
@@ -32,6 +47,14 @@ type AnalyzeResponse = {
   };
 };
 
+type LoadingPhase = "idle" | "running" | "finishing";
+
+function wait(ms: number) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
 export function CivicRelayApp() {
   const [selectedSampleId, setSelectedSampleId] = useState(sampleDocuments[0]?.id ?? "");
   const [documentText, setDocumentText] = useState(sampleDocuments[0]?.text ?? "");
@@ -40,7 +63,11 @@ export function CivicRelayApp() {
   const [result, setResult] = useState<CivicRelayResult | null>(null);
   const [runtimeMeta, setRuntimeMeta] = useState<AnalyzeResponse["meta"] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [loadingPhase, setLoadingPhase] = useState<LoadingPhase>("idle");
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingStageIndex, setLoadingStageIndex] = useState(0);
+  const [loadingDots, setLoadingDots] = useState(1);
+  const outputPanelRef = useRef<HTMLDivElement | null>(null);
 
   const activeSample = useMemo(
     () => sampleDocuments.find((document) => document.id === selectedSampleId) ?? null,
@@ -48,9 +75,93 @@ export function CivicRelayApp() {
   );
 
   const featuredDeadline = result?.deadlines[0] ?? null;
+  const isLoading = loadingPhase !== "idle";
+  const activeLoadingLabel =
+    loadingPhase === "finishing"
+      ? finishedLoadingStep.label
+      : stagedLoadingSteps[loadingStageIndex]?.label ?? stagedLoadingSteps[stagedLoadingSteps.length - 1].label;
+  const loadingHeadline =
+    loadingPhase === "finishing" ? "Done" : `Analyzing${".".repeat(loadingDots)}`;
+
+  useEffect(() => {
+    if (loadingPhase !== "running") {
+      setLoadingDots(1);
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setLoadingDots((current) => (current % 3) + 1);
+    }, 450);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [loadingPhase]);
+
+  useEffect(() => {
+    if (loadingPhase !== "running") {
+      return;
+    }
+
+    const startedAt = performance.now();
+
+    const syncLoadingState = () => {
+      const elapsed = performance.now() - startedAt;
+
+      if (elapsed >= totalStagedLoadingDuration) {
+        setLoadingProgress(stagedLoadingSteps[stagedLoadingSteps.length - 1].target);
+        setLoadingStageIndex(stagedLoadingSteps.length - 1);
+        return;
+      }
+
+      let elapsedBeforeStage = 0;
+      let previousTarget = 0;
+
+      for (let index = 0; index < stagedLoadingSteps.length; index += 1) {
+        const stage = stagedLoadingSteps[index];
+        const stageEndsAt = elapsedBeforeStage + stage.durationMs;
+
+        if (elapsed < stageEndsAt) {
+          const stageElapsed = elapsed - elapsedBeforeStage;
+          const stageProgress = stageElapsed / stage.durationMs;
+          const nextProgress = previousTarget + (stage.target - previousTarget) * stageProgress;
+          setLoadingProgress(nextProgress);
+          setLoadingStageIndex(index);
+          return;
+        }
+
+        elapsedBeforeStage = stageEndsAt;
+        previousTarget = stage.target;
+      }
+    };
+
+    syncLoadingState();
+    const intervalId = window.setInterval(syncLoadingState, 120);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [loadingPhase]);
+
+  useEffect(() => {
+    if (!result) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      outputPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [result]);
 
   async function handleAnalyze() {
-    setIsLoading(true);
+    setLoadingPhase("running");
+    setLoadingProgress(0);
+    setLoadingStageIndex(0);
+    setLoadingDots(1);
     setError(null);
 
     try {
@@ -71,18 +182,22 @@ export function CivicRelayApp() {
         throw new Error(payload.error || "CivicRelay could not produce a structured result.");
       }
 
+      setLoadingPhase("finishing");
+      setLoadingProgress(finishedLoadingStep.target);
+      setLoadingStageIndex(stagedLoadingSteps.length);
+      await wait(320);
       setResult(payload.result);
       setRuntimeMeta(payload.meta ?? null);
+      setLoadingPhase("idle");
     } catch (requestError) {
       setResult(null);
       setRuntimeMeta(null);
+      setLoadingPhase("idle");
       setError(
         requestError instanceof Error
           ? requestError.message
           : "CivicRelay could not reach the local Ollama runtime.",
       );
-    } finally {
-      setIsLoading(false);
     }
   }
 
@@ -115,6 +230,10 @@ export function CivicRelayApp() {
     setResult(null);
     setRuntimeMeta(null);
     setError(null);
+    setLoadingPhase("idle");
+    setLoadingProgress(0);
+    setLoadingStageIndex(0);
+    setLoadingDots(1);
   }
 
   return (
@@ -131,7 +250,6 @@ export function CivicRelayApp() {
             <span className="badge">Local Gemma 4</span>
             <span className="badge">Ollama runtime</span>
             <span className="badge">{displayModelName}</span>
-            <span className="badge">Synthetic demo notices</span>
             <span className="badge">No cloud LLM key</span>
             <span className="badge">Evidence-backed output</span>
           </div>
@@ -173,7 +291,7 @@ export function CivicRelayApp() {
             <div className="stack-sm">
               <div className="section-heading">
                 <strong>Try a sample notice</strong>
-                <span className="helper">Synthetic examples only, so you can demo the workflow without using real personal data.</span>
+                <span className="helper">Sample notices are synthetic for demo purposes.</span>
               </div>
 
               <div className="sample-grid">
@@ -238,21 +356,20 @@ export function CivicRelayApp() {
 
             <div className="toolbar">
               <button className="button" type="button" onClick={handleAnalyze} disabled={isLoading}>
-                {isLoading ? "Analyzing with local Gemma 4..." : "Generate action plan"}
+                {isLoading ? "Generating action plan..." : "Generate action plan"}
               </button>
-              <button className="button--ghost" type="button" onClick={handleClear}>
+              <button className="button--ghost" type="button" onClick={handleClear} disabled={isLoading}>
                 Clear
               </button>
             </div>
 
-            <div className="notice notice--warning">
-              Demo guardrails: use synthetic notices only. CivicRelay offers plain-language support, and all
-              deadlines and requirements should still be verified against the original notice.
+            <div className="trust-note">
+              <strong>Trust note:</strong> CivicRelay helps clarify notices, not replace official guidance. Verify important deadlines and requirements against the original notice.
             </div>
           </div>
         </div>
 
-        <div className="panel workbench__panel workbench__panel--action">
+        <div className="panel workbench__panel workbench__panel--action" ref={outputPanelRef}>
           <div className="panel__header stack-sm">
             <div className="section-heading section-heading--spread">
               <div>
@@ -275,7 +392,56 @@ export function CivicRelayApp() {
           <div className="panel__body stack-lg">
             {error ? <div className="notice notice--error">{error}</div> : null}
 
-            {!result && !error ? (
+            {isLoading ? (
+              <div className="loading-state stack" role="status" aria-live="polite" aria-atomic="true">
+                <div className="loading-state__lead">
+                  <span className="badge">Estimated progress</span>
+                  <h3>{loadingHeadline}</h3>
+                  <p>
+                    CivicRelay is preparing a structured action plan grounded in the notice text.
+                  </p>
+                </div>
+
+                <div
+                  className="loading-meter"
+                  role="progressbar"
+                  aria-label="Estimated analysis progress"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(loadingProgress)}
+                >
+                  <div className="loading-meter__bar" style={{ width: `${loadingProgress}%` }} />
+                </div>
+
+                <div className="loading-state__status">
+                  <strong>{activeLoadingLabel}</strong>
+                  <span>{Math.round(loadingProgress)}%</span>
+                </div>
+
+                <div className="loading-stage-grid" aria-hidden="true">
+                  {stagedLoadingSteps.map((stage, index) => {
+                    const isComplete = loadingPhase === "finishing" || loadingProgress >= stage.target;
+                    const isActive = !isComplete && index === loadingStageIndex;
+
+                    return (
+                      <div
+                        key={stage.label}
+                        className={`loading-stage-card${isComplete ? " is-complete" : ""}${isActive ? " is-active" : ""}`}
+                      >
+                        <span className="loading-stage-card__percent">{stage.target}%</span>
+                        <span className="loading-stage-card__label">{stage.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <p className="helper loading-state__footnote">
+                  Staged feedback only, not live backend progress.
+                </p>
+              </div>
+            ) : null}
+
+            {!isLoading && !result && !error ? (
               <div className="empty-state stack">
                 <div className="empty-state__lead">
                   <span className="badge">After local analysis, you’ll see</span>
@@ -310,7 +476,7 @@ export function CivicRelayApp() {
               </div>
             ) : null}
 
-            {result ? (
+            {!isLoading && result ? (
               <div className="stack-lg">
                 <div className="result-header">
                   <span className="badge">Output language: {result.language}</span>
@@ -456,7 +622,7 @@ export function CivicRelayApp() {
         <span>Model: {displayModelName}</span>
         <span>Output: strict JSON schema</span>
         <span>Grounding: quoted source snippets</span>
-        <span>Demo data: synthetic notices only</span>
+        <span>Demo data: synthetic samples</span>
         <span>Boundary: not legal, medical, school, or benefits advice</span>
       </section>
     </main>
