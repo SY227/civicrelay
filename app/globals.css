@@ -524,17 +524,15 @@ main,
   background: #f5faf5;
 }
 
-.loading-stage-card__percent {
-  color: var(--accent-dark);
-  font-size: 0.8rem;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
 .loading-stage-card__label {
   color: var(--muted);
   line-height: 1.5;
+  font-weight: 600;
+}
+
+.loading-stage-card.is-active .loading-stage-card__label,
+.loading-stage-card.is-complete .loading-stage-card__label {
+  color: var(--accent-dark);
 }
 
 .loading-state__footnote {

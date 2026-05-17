@@ -15,6 +15,10 @@ const languageOptions = [
 ];
 
 const displayModelName = "gemma4:e2b";
+const maxAnalyzeAttempts = 3;
+const retryDelayMs = [900, 1300] as const;
+const finalAnalyzeErrorMessage =
+  "CivicRelay couldn’t finish the action plan just now. Please try again.";
 
 const sampleStakes: Record<string, string> = {
   "benefits-notice": "Submission deadline + required records",
@@ -49,16 +53,106 @@ type AnalyzeResponse = {
 
 type LoadingPhase = "idle" | "running" | "finishing";
 
+class AnalyzeRequestError extends Error {
+  retriable: boolean;
+  userMessage: string;
+  status?: number;
+
+  constructor({
+    technicalMessage,
+    userMessage,
+    retriable,
+    status,
+  }: {
+    technicalMessage: string;
+    userMessage: string;
+    retriable: boolean;
+    status?: number;
+  }) {
+    super(technicalMessage);
+    this.name = "AnalyzeRequestError";
+    this.retriable = retriable;
+    this.userMessage = userMessage;
+    this.status = status;
+  }
+}
+
 function wait(ms: number) {
   return new Promise((resolve) => {
     window.setTimeout(resolve, ms);
   });
 }
 
+function isRetriableStatus(status: number) {
+  return status === 429 || status >= 500;
+}
+
+async function parseAnalyzePayload(response: Response) {
+  try {
+    return (await response.json()) as AnalyzeResponse;
+  } catch {
+    return null;
+  }
+}
+
+async function requestActionPlan(documentText: string, outputLanguage: string) {
+  try {
+    const response = await fetch("/api/analyze", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        documentText,
+        outputLanguage,
+      }),
+    });
+
+    const payload = await parseAnalyzePayload(response);
+
+    if (!response.ok || !payload?.result) {
+      const responseMessage = payload?.error?.trim();
+
+      if (isRetriableStatus(response.status)) {
+        throw new AnalyzeRequestError({
+          technicalMessage: responseMessage || `Analyze request failed with status ${response.status}.`,
+          userMessage: finalAnalyzeErrorMessage,
+          retriable: true,
+          status: response.status,
+        });
+      }
+
+      throw new AnalyzeRequestError({
+        technicalMessage: responseMessage || `Analyze request failed with status ${response.status}.`,
+        userMessage:
+          responseMessage ||
+          "Please check the notice text and try again.",
+        retriable: false,
+        status: response.status,
+      });
+    }
+
+    return payload;
+  } catch (error) {
+    if (error instanceof AnalyzeRequestError) {
+      throw error;
+    }
+
+    throw new AnalyzeRequestError({
+      technicalMessage:
+        error instanceof Error ? error.message : "Analyze request failed before a response was returned.",
+      userMessage: finalAnalyzeErrorMessage,
+      retriable: true,
+    });
+  }
+}
+
 export function CivicRelayApp() {
   const [selectedSampleId, setSelectedSampleId] = useState(sampleDocuments[0]?.id ?? "");
   const [documentText, setDocumentText] = useState(sampleDocuments[0]?.text ?? "");
-  const [documentTitle, setDocumentTitle] = useState(sampleDocuments[0]?.title ?? "Sample Benefits Renewal Notice");
+  const [documentTitle, setDocumentTitle] = useState(
+    sampleDocuments[0]?.title ?? "Sample Benefits Renewal Notice",
+  );
   const [outputLanguage, setOutputLanguage] = useState("English");
   const [result, setResult] = useState<CivicRelayResult | null>(null);
   const [runtimeMeta, setRuntimeMeta] = useState<AnalyzeResponse["meta"] | null>(null);
@@ -67,7 +161,9 @@ export function CivicRelayApp() {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingStageIndex, setLoadingStageIndex] = useState(0);
   const [loadingDots, setLoadingDots] = useState(1);
+  const [isRetryingQuietly, setIsRetryingQuietly] = useState(false);
   const outputPanelRef = useRef<HTMLDivElement | null>(null);
+  const loadingPanelRef = useRef<HTMLDivElement | null>(null);
 
   const activeSample = useMemo(
     () => sampleDocuments.find((document) => document.id === selectedSampleId) ?? null,
@@ -79,9 +175,19 @@ export function CivicRelayApp() {
   const activeLoadingLabel =
     loadingPhase === "finishing"
       ? finishedLoadingStep.label
-      : stagedLoadingSteps[loadingStageIndex]?.label ?? stagedLoadingSteps[stagedLoadingSteps.length - 1].label;
+      : isRetryingQuietly
+        ? "Retrying connection quietly..."
+        : stagedLoadingSteps[loadingStageIndex]?.label ??
+          stagedLoadingSteps[stagedLoadingSteps.length - 1].label;
   const loadingHeadline =
-    loadingPhase === "finishing" ? "Done" : `Analyzing${".".repeat(loadingDots)}`;
+    loadingPhase === "finishing"
+      ? "Done"
+      : isRetryingQuietly
+        ? "Still working on the action plan..."
+        : `Analyzing${".".repeat(loadingDots)}`;
+  const loadingSupportCopy = isRetryingQuietly
+    ? "The first attempt did not finish cleanly, so CivicRelay is quietly trying again."
+    : "CivicRelay is preparing a structured action plan grounded in the notice text.";
 
   useEffect(() => {
     if (loadingPhase !== "running") {
@@ -144,6 +250,20 @@ export function CivicRelayApp() {
   }, [loadingPhase]);
 
   useEffect(() => {
+    if (!isLoading) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      loadingPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [isLoading]);
+
+  useEffect(() => {
     if (!result) {
       return;
     }
@@ -162,42 +282,51 @@ export function CivicRelayApp() {
     setLoadingProgress(0);
     setLoadingStageIndex(0);
     setLoadingDots(1);
+    setIsRetryingQuietly(false);
     setError(null);
+    setResult(null);
+    setRuntimeMeta(null);
 
-    try {
-      const response = await fetch("/api/analyze", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          documentText,
-          outputLanguage,
-        }),
-      });
+    for (let attempt = 1; attempt <= maxAnalyzeAttempts; attempt += 1) {
+      try {
+        const payload = await requestActionPlan(documentText, outputLanguage);
+        setIsRetryingQuietly(false);
+        setLoadingPhase("finishing");
+        setLoadingProgress(finishedLoadingStep.target);
+        setLoadingStageIndex(stagedLoadingSteps.length);
+        await wait(320);
+        setResult(payload.result ?? null);
+        setRuntimeMeta(payload.meta ?? null);
+        setLoadingPhase("idle");
+        return;
+      } catch (requestError) {
+        const analyzeError =
+          requestError instanceof AnalyzeRequestError
+            ? requestError
+            : new AnalyzeRequestError({
+                technicalMessage:
+                  requestError instanceof Error
+                    ? requestError.message
+                    : "Unknown analyze request error.",
+                userMessage: finalAnalyzeErrorMessage,
+                retriable: true,
+              });
 
-      const payload = (await response.json()) as AnalyzeResponse;
+        console.error(`[CivicRelay] Analyze attempt ${attempt} failed.`, {
+          status: analyzeError.status,
+          message: analyzeError.message,
+        });
 
-      if (!response.ok || !payload.result) {
-        throw new Error(payload.error || "CivicRelay could not produce a structured result.");
+        if (!analyzeError.retriable || attempt === maxAnalyzeAttempts) {
+          setIsRetryingQuietly(false);
+          setLoadingPhase("idle");
+          setError(analyzeError.userMessage);
+          return;
+        }
+
+        setIsRetryingQuietly(true);
+        await wait(retryDelayMs[attempt - 1] ?? retryDelayMs[retryDelayMs.length - 1]);
       }
-
-      setLoadingPhase("finishing");
-      setLoadingProgress(finishedLoadingStep.target);
-      setLoadingStageIndex(stagedLoadingSteps.length);
-      await wait(320);
-      setResult(payload.result);
-      setRuntimeMeta(payload.meta ?? null);
-      setLoadingPhase("idle");
-    } catch (requestError) {
-      setResult(null);
-      setRuntimeMeta(null);
-      setLoadingPhase("idle");
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : "CivicRelay could not reach the local Ollama runtime.",
-      );
     }
   }
 
@@ -234,6 +363,7 @@ export function CivicRelayApp() {
     setLoadingProgress(0);
     setLoadingStageIndex(0);
     setLoadingDots(1);
+    setIsRetryingQuietly(false);
   }
 
   return (
@@ -374,7 +504,9 @@ export function CivicRelayApp() {
             <div className="section-heading section-heading--spread">
               <div>
                 <h2>Action plan</h2>
-                <p className="helper">This is the heart of the demo: what the notice means, what to do next, and what needs attention first.</p>
+                <p className="helper">
+                  This is the heart of the demo: what the notice means, what to do next, and what needs attention first.
+                </p>
               </div>
               <div className="panel-badges">
                 <span className="badge">Local Gemma 4</span>
@@ -393,13 +525,17 @@ export function CivicRelayApp() {
             {error ? <div className="notice notice--error">{error}</div> : null}
 
             {isLoading ? (
-              <div className="loading-state stack" role="status" aria-live="polite" aria-atomic="true">
+              <div
+                className="loading-state stack"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+                ref={loadingPanelRef}
+              >
                 <div className="loading-state__lead">
                   <span className="badge">Estimated progress</span>
                   <h3>{loadingHeadline}</h3>
-                  <p>
-                    CivicRelay is preparing a structured action plan grounded in the notice text.
-                  </p>
+                  <p>{loadingSupportCopy}</p>
                 </div>
 
                 <div
@@ -428,7 +564,6 @@ export function CivicRelayApp() {
                         key={stage.label}
                         className={`loading-stage-card${isComplete ? " is-complete" : ""}${isActive ? " is-active" : ""}`}
                       >
-                        <span className="loading-stage-card__percent">{stage.target}%</span>
                         <span className="loading-stage-card__label">{stage.label}</span>
                       </div>
                     );
@@ -436,7 +571,7 @@ export function CivicRelayApp() {
                 </div>
 
                 <p className="helper loading-state__footnote">
-                  Staged feedback only, not live backend progress.
+                  Staged feedback only. The backend may finish faster or slower.
                 </p>
               </div>
             ) : null}
@@ -454,15 +589,21 @@ export function CivicRelayApp() {
                 <div className="preview-grid">
                   <div className="preview-card">
                     <strong>What this means</strong>
-                    <span>A plain-language summary of the notice in the selected language, ready for a quick demo walkthrough.</span>
+                    <span>
+                      A plain-language summary of the notice in the selected language, ready for a quick demo walkthrough.
+                    </span>
                   </div>
                   <div className="preview-card preview-card--deadline">
                     <strong>Key deadline</strong>
-                    <span>The most important date is elevated visually, together with the likely consequence of missing it.</span>
+                    <span>
+                      The most important date is elevated visually, together with the likely consequence of missing it.
+                    </span>
                   </div>
                   <div className="preview-card">
                     <strong>Your next steps</strong>
-                    <span>Prioritized actions, with a clear rationale for each step so the next move feels obvious.</span>
+                    <span>
+                      Prioritized actions, with a clear rationale for each step so the next move feels obvious.
+                    </span>
                   </div>
                   <div className="preview-card">
                     <strong>Documents to prepare</strong>
@@ -559,7 +700,9 @@ export function CivicRelayApp() {
           <div className="panel__header stack-sm">
             <div>
               <h2>Evidence and trust</h2>
-              <p className="helper">Quoted evidence, uncertainty, and safety boundaries stay visible beside the action plan throughout the demo.</p>
+              <p className="helper">
+                Quoted evidence, uncertainty, and safety boundaries stay visible beside the action plan throughout the demo.
+              </p>
             </div>
           </div>
 
@@ -568,15 +711,21 @@ export function CivicRelayApp() {
               <div className="stack">
                 <div className="trust-card">
                   <strong>Source evidence</strong>
-                  <p>Exact short quotes from the notice appear here so viewers can quickly check the summary against the source text.</p>
+                  <p>
+                    Exact short quotes from the notice appear here so viewers can quickly check the summary against the source text.
+                  </p>
                 </div>
                 <div className="trust-card">
                   <strong>Where CivicRelay is unsure</strong>
-                  <p>If a requirement or date is unclear, the app flags the uncertainty instead of pretending to know more than the notice says.</p>
+                  <p>
+                    If a requirement or date is unclear, the app flags the uncertainty instead of pretending to know more than the notice says.
+                  </p>
                 </div>
                 <div className="trust-card">
                   <strong>Important boundary</strong>
-                  <p>CivicRelay helps people interpret notices more confidently. It does not replace legal, medical, school, or benefits professionals.</p>
+                  <p>
+                    CivicRelay helps people interpret notices more confidently. It does not replace legal, medical, school, or benefits professionals.
+                  </p>
                 </div>
               </div>
             ) : null}
@@ -586,7 +735,9 @@ export function CivicRelayApp() {
                 <div className="trust-card">
                   <div className="section-heading">
                     <strong>Quoted evidence</strong>
-                    <span className="helper">Exact snippets remain in the original document language for a stronger, more credible demo.</span>
+                    <span className="helper">
+                      Exact snippets remain in the original document language for a stronger, more credible demo.
+                    </span>
                   </div>
                   <ul className="clean-list">
                     {result.source_snippets.map((snippet, index) => (
