@@ -312,18 +312,22 @@ export function CivicRelayApp() {
                 retriable: true,
               });
 
-        console.error(`[CivicRelay] Analyze attempt ${attempt} failed.`, {
-          status: analyzeError.status,
+        const logMessage = `[CivicRelay] Analyze attempt ${attempt} failed.`;
+        const logDetails = {
+          status: analyzeError.status ?? null,
           message: analyzeError.message,
-        });
+          retriable: analyzeError.retriable,
+        };
 
         if (!analyzeError.retriable || attempt === maxAnalyzeAttempts) {
+          console.error(logMessage, logDetails);
           setIsRetryingQuietly(false);
           setLoadingPhase("idle");
           setError(analyzeError.userMessage);
           return;
         }
 
+        console.warn(`${logMessage} Retrying quietly.`, logDetails);
         setIsRetryingQuietly(true);
         await wait(retryDelayMs[attempt - 1] ?? retryDelayMs[retryDelayMs.length - 1]);
       }
