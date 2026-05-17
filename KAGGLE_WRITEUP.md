@@ -1,4 +1,18 @@
-# CivicRelay - Kaggle Writeup
+# CivicRelay — Confusing paperwork in. Clear action plan out.
+
+**CivicRelay is a local-first Gemma 4 demo that turns public-service notices into clear, multilingual action plans while keeping evidence and uncertainty visible.**
+
+The United States is diverse, but public-service paperwork is still often written in dense, formal language.
+
+For many people, the hard part is not only translation. It is action.
+
+A notice may include a deadline, required documents, eligibility-related wording, and agency instructions. A person may understand some of the words and still not know what to do next.
+
+CivicRelay is built for that moment.
+
+**Confusing paperwork in. Clear action plan out.**
+
+\n# CivicRelay - Kaggle Writeup
 
 ## Positioning
 
