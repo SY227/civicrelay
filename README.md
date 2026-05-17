@@ -209,3 +209,7 @@ npm run build
 ## Kaggle writeup
 
 See `KAGGLE_WRITEUP.md` for a competition-ready narrative covering the problem, target user, workflow, guardrails, limitations, and future work.
+
+## License
+
+MIT License.
