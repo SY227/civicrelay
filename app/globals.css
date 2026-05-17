@@ -280,6 +280,23 @@ main,
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
+.input[type="file"] {
+  color: transparent;
+  overflow: hidden;
+}
+
+.input[type="file"]::file-selector-button {
+  margin: -14px 0 -14px -16px;
+  padding: 14px 16px;
+  border: 0;
+  border-right: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .input:focus,
 .textarea:focus,
 .select:focus {
