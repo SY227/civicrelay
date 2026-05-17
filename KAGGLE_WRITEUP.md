@@ -12,7 +12,6 @@ CivicRelay is built for that moment.
 
 **Confusing paperwork in. Clear action plan out.**
 
-\n# CivicRelay - Kaggle Writeup
 
 ## Positioning
 
