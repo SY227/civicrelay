@@ -2,7 +2,7 @@ import { GoogleAuth } from "google-auth-library";
 import type { CivicRelayResult, Priority } from "@/lib/types";
 
 const DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434";
-const DEFAULT_OLLAMA_MODEL = "gemma4:e4b";
+const DEFAULT_OLLAMA_MODEL = "gemma4:e2b";
 
 export function getOllamaConfig() {
   return {
