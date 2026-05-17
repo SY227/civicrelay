@@ -6,6 +6,19 @@ CivicRelay is a local-first Gemma 4 demo for public-service notices, powered by 
 
 In your language, locally powered by Gemma 4.
 
+## Hosted demo / runtime note
+
+The hosted demo is available at:
+
+https://civicrelay.vercel.app
+
+For judging reliability, the public demo currently uses a Vercel frontend connected to a Google Cloud Run backend running Ollama with `gemma4:e2b`.
+
+The product direction remains local-first / self-hostable: CivicRelay is designed around Gemma 4 via Ollama so the same workflow can move closer to controlled or local environments for privacy-sensitive public-service paperwork.
+
+The live demo is a hackathon prototype. It uses synthetic public-service notices for safe demonstration and does not provide legal, medical, school compliance, benefits, or eligibility advice.
+
+
 ## Positioning
 
 **Confusing paperwork in. Clear action plan out.**
@@ -38,7 +51,7 @@ The desktop UI is organized as a 3-zone workbench:
 
 Below the workbench, a compact proof strip makes the runtime explicit:
 - Runtime: local Ollama
-- Model: `gemma4:e4b`
+- Model: `gemma4:e2b`
 - Output: strict JSON schema
 - Grounding: quoted source snippets
 - Demo data: synthetic notices only
@@ -49,7 +62,7 @@ Below the workbench, a compact proof strip makes the runtime explicit:
 CivicRelay keeps the core runtime local:
 
 - **Ollama base URL**: `http://localhost:11434`
-- **Default model**: `gemma4:e4b`
+- **Default model**: `gemma4:e2b`
 - **No cloud LLM key required**
 - **No Gemini API required**
 
@@ -112,7 +125,7 @@ Then start Ollama and pull the model:
 
 ```bash
 ollama serve
-ollama pull gemma4:e4b
+ollama pull gemma4:e2b
 ```
 
 If Ollama is already running elsewhere on your machine, keep using `http://localhost:11434`.
@@ -127,7 +140,7 @@ cp .env.example .env.local
 
 ```bash
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=gemma4:e4b
+OLLAMA_MODEL=gemma4:e2b
 ```
 
 Defaults are already set in code to those same values.
@@ -148,7 +161,7 @@ http://localhost:3000
 
 1. The user provides notice text
 2. Next.js sends that text to the local Ollama server
-3. Ollama runs `gemma4:e4b`
+3. Ollama runs `gemma4:e2b`
 4. CivicRelay requests strict JSON
 5. The UI renders the result as an action plan plus trust evidence
 
@@ -167,7 +180,7 @@ A short Kaggle-ready demo flow:
 4. Click **Generate action plan**
 5. Show the centered deadline and next steps
 6. Show quoted evidence, uncertainty flags, and the boundary panel
-7. Point to the proof strip confirming local Ollama + `gemma4:e4b`
+7. Point to the proof strip confirming local Ollama + `gemma4:e2b`
 
 ## Safety boundaries
 
