@@ -61,7 +61,7 @@ A local runtime helps with:
 
 For this demo, CivicRelay runs through:
 - **Runtime**: local Ollama
-- **Model**: `gemma4:e4b`
+- **Model**: `gemma4:e2b`
 - **Default base URL**: `http://localhost:11434`
 
 ## Workflow
@@ -69,7 +69,7 @@ For this demo, CivicRelay runs through:
 1. The user pastes a public-service notice or selects a synthetic sample
 2. The user chooses an action plan language
 3. The app sends the notice text to local Ollama
-4. Ollama runs `gemma4:e4b`
+4. Ollama runs `gemma4:e2b`
 5. CivicRelay requests a strict JSON response
 6. The UI renders a three-zone workbench:
    - **Notice input**
@@ -115,7 +115,7 @@ A person receives a benefits renewal notice with document requirements and a fin
 5. Generate the local analysis
 6. Show the centered key deadline and prioritized next steps
 7. Show the quoted evidence and uncertainty panel
-8. Point to the proof strip confirming local Ollama + `gemma4:e4b`
+8. Point to the proof strip confirming local Ollama + `gemma4:e2b`
 
 This works well in a short video because the before/after story is visible within a few seconds.
 
@@ -155,7 +155,7 @@ Potential next steps after the competition:
 
 - **Frontend**: Next.js + React
 - **Runtime**: local Ollama
-- **Model**: `gemma4:e4b`
+- **Model**: `gemma4:e2b`
 - **Output mode**: strict JSON schema
 - **Trust features**: quoted source snippets, uncertainty flags, safety boundary
 - **Demo data**: synthetic notices only
