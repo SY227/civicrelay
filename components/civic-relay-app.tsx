@@ -8,7 +8,7 @@ const languageOptions = [
   "English",
   "Spanish",
   "Chinese (Simplified)",
-  "Traditional Chinese",
+  "Chinese (Traditional)",
   "Arabic",
   "Tagalog",
   "Vietnamese",
