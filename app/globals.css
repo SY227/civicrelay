@@ -701,6 +701,19 @@ main,
   box-shadow: var(--shadow);
 }
 
+.meta-notes {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 0 4px;
+}
+
+.meta-note {
+  margin: 0;
+  font-size: 0.94rem;
+  line-height: 1.6;
+}
+
 @media (max-width: 1220px) {
   .workbench {
     grid-template-columns: 1fr;

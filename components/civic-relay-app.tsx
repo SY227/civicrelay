@@ -8,6 +8,7 @@ const languageOptions = [
   "English",
   "Spanish",
   "Chinese (Simplified)",
+  "Traditional Chinese",
   "Arabic",
   "Tagalog",
   "Vietnamese",
@@ -779,6 +780,15 @@ export function CivicRelayApp() {
         <span>Grounding: quoted source snippets</span>
         <span>Demo data: synthetic samples</span>
         <span>Boundary: not legal, medical, school, or benefits advice</span>
+      </section>
+
+      <section className="meta-notes" aria-label="Hosted demo notes">
+        <p className="helper meta-note">
+          Hosted demo: Vercel frontend + Cloud Run backend running Ollama / Gemma 4 E2B.
+        </p>
+        <p className="helper meta-note">
+          Future work: PDF/OCR support for scanned notices and image-based paperwork.
+        </p>
       </section>
     </main>
   );

@@ -64,10 +64,12 @@ For this demo, CivicRelay runs through:
 - **Model**: `gemma4:e2b`
 - **Default base URL**: `http://localhost:11434`
 
+For judging reliability, the hosted demo uses a Vercel frontend connected to a Google Cloud Run backend running Ollama with `gemma4:e2b`.
+
 ## Workflow
 
 1. The user pastes a public-service notice or selects a synthetic sample
-2. The user chooses an action plan language
+2. The user chooses an action plan language, including Traditional Chinese
 3. The app sends the notice text to local Ollama
 4. Ollama runs `gemma4:e2b`
 5. CivicRelay requests a strict JSON response
@@ -145,7 +147,8 @@ That makes the system easier to judge as a product artifact, not just a prompt w
 
 Potential next steps after the competition:
 
-- stronger multilingual evaluation across more notice types
+- stronger multilingual evaluation across more notice types, including Traditional Chinese output quality
+- PDF/OCR support for scanned notices and image-based paperwork
 - improved accessibility and mobile testing
 - richer notice templates for broader synthetic benchmarking
 - better handling of repeated deadlines or multi-step timelines
@@ -153,8 +156,8 @@ Potential next steps after the competition:
 
 ## Technical summary
 
-- **Frontend**: Next.js + React
-- **Runtime**: local Ollama
+- **Frontend**: Next.js + React on Vercel for the hosted demo
+- **Backend**: Google Cloud Run running Ollama
 - **Model**: `gemma4:e2b`
 - **Output mode**: strict JSON schema
 - **Trust features**: quoted source snippets, uncertainty flags, safety boundary

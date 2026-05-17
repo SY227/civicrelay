@@ -14,9 +14,13 @@ https://civicrelay.vercel.app
 
 For judging reliability, the public demo currently uses a Vercel frontend connected to a Google Cloud Run backend running Ollama with `gemma4:e2b`.
 
+Supported output languages currently include English, Spanish, Chinese (Simplified), Traditional Chinese, Arabic, Tagalog, Vietnamese, and Korean.
+
 The product direction remains local-first / self-hostable: CivicRelay is designed around Gemma 4 via Ollama so the same workflow can move closer to controlled or local environments for privacy-sensitive public-service paperwork.
 
 The live demo is a hackathon prototype. It uses synthetic public-service notices for safe demonstration and does not provide legal, medical, school compliance, benefits, or eligibility advice.
+
+Future work: PDF/OCR support for scanned notices and image-based paperwork.
 
 
 ## Positioning
@@ -35,7 +39,7 @@ The desktop UI is organized as a 3-zone workbench:
    - paste notice text
    - upload a text file
    - try synthetic sample notices
-   - choose the action plan language
+   - choose the action plan language, including Traditional Chinese
 
 2. **Action plan**
    - what this means
