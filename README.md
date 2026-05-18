@@ -20,6 +20,15 @@ The product direction remains local-first / self-hostable: CivicRelay is designe
 
 The live demo is a hackathon prototype. It uses synthetic public-service notices for safe demonstration and does not provide legal, medical, school compliance, benefits, or eligibility advice.
 
+### Judge note
+
+The hosted demo does not require local setup. Judges can use the live Vercel app directly:
+
+https://civicrelay.vercel.app
+
+For reproducibility, this repository also includes local Ollama setup instructions. The live demo uses a Vercel frontend connected to a Google Cloud Run backend running Ollama with `gemma4:e2b`.
+
+
 Future work: PDF/OCR support for scanned notices and image-based paperwork.
 
 
