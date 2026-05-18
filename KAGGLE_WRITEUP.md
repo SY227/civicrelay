@@ -1,6 +1,6 @@
 # CivicRelay — Confusing paperwork in. Clear action plan out.
 
-**CivicRelay is a local-first Gemma 4 demo that turns public-service notices into clear, multilingual action plans while keeping evidence and uncertainty visible.**
+CivicRelay is a local-first Gemma 4 demo that turns public-service notices into clear, multilingual action plans while keeping evidence and uncertainty visible.
 
 The United States is diverse, but public-service paperwork is still often written in dense, formal language.
 
@@ -10,172 +10,153 @@ A notice may include a deadline, required documents, eligibility-related wording
 
 CivicRelay is built for that moment.
 
-**Confusing paperwork in. Clear action plan out.**
+## What I built
 
+CivicRelay is a focused web prototype for turning confusing public-service notices into structured next steps.
 
-## Positioning
+A user can paste a notice, choose an output language, and generate an action plan. The app currently supports English, Spanish, Chinese (Simplified), Chinese (Traditional), Arabic, Tagalog, Vietnamese, and Korean.
 
-**Confusing paperwork in. Clear action plan out.**
+The output is organized into practical sections:
 
-In your language, locally powered by Gemma 4.
+- what the notice says
+- what the user may need to do next
+- important deadlines
+- documents to prepare
+- questions to ask the office
+- source evidence from the notice
+- uncertainty flags
+- safety boundaries
 
-CivicRelay is a local-first Gemma 4 demo for public-service notices, powered by Ollama and designed to keep action, evidence, and uncertainty visible.
+The goal is not to replace official guidance. The goal is to make the next step clearer.
 
-It is an evidence-first civic workbench built around one transformation:
+## Why this matters
 
-**public-service notice in → local Gemma 4 analysis → clear action plan out**
+Government and public-service notices often carry real consequences. A missed deadline, missing document, or unclear instruction can delay support and create more stress.
 
-The output is paired with quoted source evidence, uncertainty flags, and an explicit safety boundary.
+Translation alone does not always solve the problem. A user may still need to understand:
 
-## Problem
+- What date matters most?
+- What documents should I prepare?
+- What should I ask the office?
+- Which parts of the notice support this action plan?
+- What is still unclear?
 
-Public-service paperwork is often dense, stressful, and hard to act on quickly. A person may receive a notice about benefits renewal, school attendance support, or clinic follow-up and still not know:
-
-- what the notice actually means
-- what they need to do first
-- what deadline matters most
-- what documents to prepare
-- what questions to ask if something is unclear
-
-This confusion can lead to missed deadlines, missed appointments, and avoidable loss of support.
-
-## Target user
-
-CivicRelay is aimed at people who need plain-language help understanding civic or public-service notices, especially when:
-
-- English is not their preferred language
-- the notice is bureaucratic or intimidating
-- they need a quick action plan, not a long explanation
-- privacy and local processing matter
-
-It is also useful as a demonstration artifact for community-serving AI workflows where trust and boundaries matter.
+CivicRelay is designed around that practical gap. It helps turn formal notice language into a clear plan that a person can review, verify, and act on.
 
 ## Why Gemma 4
 
-This project needs a model that can:
+Gemma 4 is the document-understanding and structured reasoning engine inside CivicRelay.
 
-- read messy administrative text
-- summarize it clearly
-- produce structured output instead of loose prose
-- support multilingual explanations
-- work inside a constrained, inspectable workflow
+This is not an open-ended chatbot. The app uses a constrained workflow that asks Gemma 4 to return structured output. That structure allows the interface to separate action steps, deadlines, documents, questions, evidence, uncertainty, and safety boundaries.
 
-Gemma 4 fits because CivicRelay is not using the model as a generic chatbot. It is using Gemma 4 as a local document-understanding engine inside a fixed civic task.
+The workflow uses:
 
-## Why local-first
+- Gemma 4 via Ollama
+- structured output
+- evidence snippets
+- uncertainty flags
+- multilingual action planning
+- visible safety boundaries
 
-Local-first matters for this category because public-service notices can contain sensitive personal information.
+Gemma 4 is central to the experience. It reads the notice, identifies the practical next steps, supports the selected output language, and returns the result in a format the app can turn into an action plan.
 
-A local runtime helps with:
+## How it works
 
-1. **Privacy**: the text can stay on the user’s device
-2. **Trust**: the system is easier to explain when no cloud API key is required
-3. **Practicality**: community-serving workflows may need lower-connectivity or lower-infrastructure setups
+The live demo uses a Vercel frontend connected to a Google Cloud Run backend running Ollama with `gemma4:e2b`.
 
-For this demo, CivicRelay runs through:
-- **Runtime**: local Ollama
-- **Model**: `gemma4:e2b`
-- **Default base URL**: `http://localhost:11434`
+The flow is:
 
-For judging reliability, the hosted demo uses a Vercel frontend connected to a Google Cloud Run backend running Ollama with `gemma4:e2b`.
+1. The user enters public-service notice text.
+2. The user selects an output language.
+3. The backend sends the notice into a constrained Gemma 4 workflow through Ollama.
+4. Gemma 4 returns structured output.
+5. The app renders the result as an action plan with evidence and uncertainty visible.
 
-## Workflow
+For judging access, the hosted demo does not require local setup. Judges can use the live Vercel app directly.
 
-1. The user pastes a public-service notice or selects a synthetic sample
-2. The user chooses an action plan language, including Traditional Chinese
-3. The app sends the notice text to local Ollama
-4. Ollama runs `gemma4:e2b`
-5. CivicRelay requests a strict JSON response
-6. The UI renders a three-zone workbench:
-   - **Notice input**
-   - **Action plan**
-   - **Evidence and trust**
-
-The action plan includes:
-- what this means
-- your next steps
-- key deadlines
-- documents to prepare
-- questions for the agency
-
-The trust panel includes:
-- quoted evidence
-- where CivicRelay is unsure
-- important boundary
-
-## Safety guardrails
-
-CivicRelay is designed to reduce confusion, not act as an authority.
-
-Guardrails include:
-- synthetic sample notices only for the public demo
-- no real personal data required
-- quoted evidence pulled directly from the notice
-- uncertainty flags when the notice is incomplete or unclear
-- important dates must come from the notice text or be marked unclear
-- no claims of eligibility or entitlement unless the notice explicitly says so
-- no legal, medical, school compliance, or benefits advice
-- visible safety language reminding the user to verify the original notice
+For reproducibility, the GitHub repository also includes local Ollama setup instructions.
 
 ## Demo scenario
 
-### Scenario
-A person receives a benefits renewal notice with document requirements and a final deadline. They are stressed, want the explanation in Spanish, and need to know the most important next steps immediately.
+The demo uses a synthetic benefits renewal notice.
 
-### Demo flow
-1. Open CivicRelay
-2. Pause on the transformation strip: notice → local Gemma 4 → action plan
-3. Select the synthetic benefits notice
-4. Switch the action plan language to Spanish
-5. Generate the local analysis
-6. Show the centered key deadline and prioritized next steps
-7. Show the quoted evidence and uncertainty panel
-8. Point to the proof strip confirming local Ollama + `gemma4:e2b`
+The notice includes a deadline and required documents. The user needs to understand what to prepare, what date matters, and what questions to ask before support could be delayed.
 
-This works well in a short video because the before/after story is visible within a few seconds.
+In the demo video, I select Chinese (Traditional) as the output language to show how the same notice can become easier to act on across language barriers.
 
-## Why this is strong for a competition demo
+## Responsible AI and safety boundaries
 
-CivicRelay is intentionally narrow and legible.
+CivicRelay works in a sensitive domain, so the product is designed with restraint.
 
-Instead of presenting AI as a generic assistant, it demonstrates one focused public-good workflow:
-- input is concrete
-- model use is explicit
-- output is structured
-- evidence is visible
-- uncertainty is surfaced
-- safety boundaries are not hidden
+CivicRelay does not:
 
-That makes the system easier to judge as a product artifact, not just a prompt wrapper.
+- determine eligibility
+- replace official guidance
+- provide legal advice
+- provide medical advice
+- provide school compliance advice
+- provide benefits advice
+
+Instead, it helps clarify the notice and keeps important information visible.
+
+The app includes source evidence, uncertainty flags, and a trust note reminding users to verify important deadlines and requirements against the original notice.
+
+This is important because a civic AI tool should not hide uncertainty. It should help the user understand the next step while making the limits of the system clear.
+
+## What makes it different from a chatbot
+
+CivicRelay is intentionally narrow.
+
+It is not a general assistant. It is a paperwork-to-action workflow.
+
+The app is designed around one transformation:
+
+**notice in → Gemma 4 analysis → action plan out**
+
+The most important product choice is that action, evidence, uncertainty, and safety boundaries stay visible together.
+
+That makes the experience more inspectable than a normal AI answer. The user can see what the system suggests, what evidence supports it, and what still needs to be verified.
 
 ## Limitations
 
-- It only knows what is present in the supplied notice text
-- It may misread incomplete, badly copied, or ambiguous documents
-- It does not replace legal, medical, school, or benefits professionals
-- It currently assumes text input rather than broader document ingestion workflows
-- A real deployment would require deeper accessibility testing, community feedback, multilingual evaluation, and stronger policy review
+This is a hackathon prototype.
+
+Current limitations:
+
+- The demo uses synthetic public-service notices.
+- The app currently focuses on text-based notice input.
+- PDF and OCR support are not implemented yet.
+- Evidence grounding is prototype-level and should still be checked against the original notice.
+- The app does not make official decisions or eligibility determinations.
+- Output quality depends on the clarity and completeness of the notice text.
+
+These limitations are intentional. CivicRelay is focused on showing one clear workflow safely, rather than claiming to be a full production civic-service platform.
 
 ## Future work
 
-Potential next steps after the competition:
+Future work includes:
 
-- stronger multilingual evaluation across more notice types, including Traditional Chinese output quality
 - PDF/OCR support for scanned notices and image-based paperwork
-- improved accessibility and mobile testing
-- richer notice templates for broader synthetic benchmarking
-- better handling of repeated deadlines or multi-step timelines
-- offline packaging guidance for community organizations
+- stronger source quote verification
+- broader multilingual testing
+- accessibility improvements
+- agency-specific templates
+- community organization review workflows
+- a more complete local deployment package
 
-## Technical summary
+## Links
 
-- **Frontend**: Next.js + React on Vercel for the hosted demo
-- **Backend**: Google Cloud Run running Ollama
-- **Model**: `gemma4:e2b`
-- **Output mode**: strict JSON schema
-- **Trust features**: quoted source snippets, uncertainty flags, safety boundary
-- **Demo data**: synthetic notices only
+Live demo:  
+https://civicrelay.vercel.app
 
-## AI-assisted development disclosure
+GitHub:  
+https://github.com/SY227/civicrelay
 
-AI-assisted development tools were used to accelerate implementation and documentation. Product direction, runtime selection, testing, and final submission review were directed by the project author.
+Demo video:  
+https://www.youtube.com/watch?v=VoF4cBxI0GI
+
+## Closing
+
+CivicRelay is built around one simple idea:
+
+**Confusing paperwork in. Clear action plan out.**
